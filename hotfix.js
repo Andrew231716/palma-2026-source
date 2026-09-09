@@ -14,22 +14,20 @@
   };
   void ensureTus().catch(()=>{});
 
-  const patchTus=()=>{
-    const Upload=window.tus?.Upload;
-    if(!Upload?.prototype||Upload.prototype.__palmaFreshUpload)return false;
-    Upload.prototype.findPreviousUploads=async function(){return []};
-    Upload.prototype.__palmaFreshUpload=true;
-    return true;
-  };
-  let tusTries=0;
-  const tusTimer=setInterval(()=>{if(patchTus()||++tusTries>180)clearInterval(tusTimer)},100);
-
   const css=document.createElement('style');
   css.id='palma-mobile-critical-hotfix';
   css.textContent=`
     .pc-toolbar{position:sticky!important;top:0!important;z-index:40!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;scrollbar-width:none!important}
     .pc-toolbar::-webkit-scrollbar{display:none!important}
     .palma-select-sticky,.pc-toolbar [data-select],.pc-toolbar button[data-action="select"],.pc-toolbar button.pc-select{position:sticky!important;left:0!important;z-index:5!important;flex:0 0 auto!important;visibility:visible!important;opacity:1!important;display:inline-flex!important}
+    .palma-batch-preview{margin:12px 0 14px;padding:12px;border-radius:18px;background:#f5f7f6;border:1px solid rgba(18,59,77,.08)}
+    .palma-batch-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;color:#123b4d;font:800 13px system-ui}
+    .palma-batch-preview-list{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;scrollbar-width:none}
+    .palma-batch-preview-list::-webkit-scrollbar{display:none}
+    .palma-batch-item{position:relative;flex:0 0 76px;width:76px;height:76px;border-radius:13px;overflow:hidden;background:#dfe8e6}
+    .palma-batch-item img,.palma-batch-item video{width:100%;height:100%;object-fit:cover;display:block}
+    .palma-batch-video{position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.65);color:white;font:700 10px system-ui}
+    .palma-batch-more{flex:0 0 76px;height:76px;border-radius:13px;display:grid;place-items:center;text-align:center;background:#e7efed;color:#123b4d;font:800 12px system-ui}
     .palma-boarding-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
     .palma-boarding-attach,.palma-boarding-open,.palma-boarding-delete{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:10px 13px;border:1px solid rgba(18,59,77,.12);border-radius:12px;background:#eef5f3;color:#123b4d;font:800 12px system-ui;cursor:pointer}
     .palma-boarding-open{background:#123b4d;color:#fff;text-decoration:none}
@@ -44,6 +42,47 @@
       if(/^seleziona$/i.test((b.textContent||'').trim())) b.classList.add('palma-select-sticky');
     }
   };
+
+  let previewUrls=[];
+  const clearPreviewUrls=()=>{for(const u of previewUrls)URL.revokeObjectURL(u);previewUrls=[]};
+  const renderBatchPreview=(input,files)=>{
+    document.querySelector('.palma-batch-preview')?.remove();
+    clearPreviewUrls();
+    if(!files.length)return;
+    const box=document.createElement('div');box.className='palma-batch-preview';
+    const head=document.createElement('div');head.className='palma-batch-preview-head';
+    const photos=files.filter(f=>/^image\//i.test(f.type)).length;
+    const videos=files.filter(f=>/^video\//i.test(f.type)||/\.(mov|mp4|m4v|avi|webm)$/i.test(f.name)).length;
+    head.innerHTML=`<span>${files.length} elementi pronti</span><span>${photos?photos+' foto ':''}${videos?videos+' video':''}</span>`;
+    const list=document.createElement('div');list.className='palma-batch-preview-list';
+    const visible=files.slice(0,18);
+    for(const f of visible){
+      const item=document.createElement('div');item.className='palma-batch-item';
+      const u=URL.createObjectURL(f);previewUrls.push(u);
+      if(/^image\//i.test(f.type)){
+        const img=document.createElement('img');img.src=u;img.alt='';item.appendChild(img);
+      }else{
+        const v=document.createElement('video');v.src=u;v.muted=true;v.playsInline=true;v.preload='metadata';item.appendChild(v);
+        const badge=document.createElement('span');badge.className='palma-batch-video';badge.textContent='▶';item.appendChild(badge);
+      }
+      list.appendChild(item);
+    }
+    if(files.length>visible.length){const more=document.createElement('div');more.className='palma-batch-more';more.textContent=`+${files.length-visible.length}\naltre`;list.appendChild(more)}
+    box.append(head,list);
+    const uploadArea=[...document.querySelectorAll('div,section')].find(el=>/caricamento in corso/i.test(el.textContent||'')&&el.querySelector('progress,.progress,[class*="progress"]'));
+    const addButton=[...document.querySelectorAll('button')].find(b=>/aggiungi/i.test(b.textContent||''));
+    if(uploadArea?.parentElement)uploadArea.parentElement.insertBefore(box,uploadArea);
+    else if(addButton?.parentElement)addButton.parentElement.insertBefore(box,addButton);
+    else input.parentElement?.insertBefore(box,input);
+  };
+  document.addEventListener('change',e=>{
+    const input=e.target;
+    if(!(input instanceof HTMLInputElement)||input.type!=='file'||!input.multiple)return;
+    const files=[...(input.files||[])];
+    if(!files.length)return;
+    if(!files.some(f=>/^image\//i.test(f.type)||/^video\//i.test(f.type)||/\.(heic|heif|jpg|jpeg|png|gif|mov|mp4|m4v|webm)$/i.test(f.name)))return;
+    renderBatchPreview(input,files);
+  },true);
 
   const DB_NAME='palma2026-private';
   const STORE='files';
