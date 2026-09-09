@@ -1871,6 +1871,7 @@ const CLOUD_CACHE_PREFIX = "palma2026-shared-cache:";
 const PENDING_PREFIX = "palma2026-shared-pending:";
 const TRIP_ID_KEY = "palma2026-trip-id";
 const TRIP_CODE_KEY = "palma2026-trip-code";
+const NAME_ONLY_ACCESS_CODE = "__palma_name_only_v1__";
 function parseLocalValue(raw) {
     return raw == null ? null : { value: raw };
 }
@@ -2103,32 +2104,29 @@ if (typeof window !== "undefined") {
 window.storage = storageBridge;
 function AccessScreen({ onJoined }) {
     const [name, setName] = useState(() => localStorage.getItem("palma2026-profile-name-draft") || "");
-    const [code, setCode] = useState(() => localStorage.getItem(TRIP_CODE_KEY) || "");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const join = async () => {
-        if (!code.trim())
+        const cleanName = name.trim();
+        if (!cleanName)
             return;
         setBusy(true);
         setError("");
         try {
-            if (name.trim())
-                localStorage.setItem("palma2026-profile-name-draft", name.trim());
-            await joinCloudTrip(code.trim(), name.trim());
-            if (name.trim()) {
-                await storageBridge.set("palma2026-profile", JSON.stringify(name.trim()), false);
-            }
+            localStorage.setItem("palma2026-profile-name-draft", cleanName);
+            await joinCloudTrip(NAME_ONLY_ACCESS_CODE, cleanName);
+            await storageBridge.set("palma2026-profile", JSON.stringify(cleanName), false);
             onJoined();
         }
         catch (e) {
             const raw = e?.message || "Impossibile entrare nel viaggio.";
-            setError(raw.includes("invalid_trip_code") || raw.includes("unauthorized") ? "Codice viaggio non corretto." : "Connessione non disponibile. Riprova tra poco.");
+            setError(raw.includes("invalid_trip_code") || raw.includes("unauthorized") ? "Accesso non disponibile." : "Connessione non disponibile. Riprova tra poco.");
         }
         finally {
             setBusy(false);
         }
     };
-    return (_jsx("main", { className: "boot-shell", children: _jsxs("section", { className: "access-card", children: [_jsx("div", { className: "access-icon", children: _jsx(Plane, { size: 28 }) }), _jsx("div", { className: "access-kicker", children: "Palma \u00B7 1\u20139 settembre 2026" }), _jsx("h1", { children: "Entra nel viaggio" }), _jsx("p", { className: "access-copy", children: "Inserisci il codice del gruppo. Il programma e le spese saranno sincronizzati con gli altri partecipanti." }), _jsxs("label", { className: "boot-label", children: ["Il tuo nome", _jsx("input", { value: name, onChange: (e) => setName(e.target.value), placeholder: "Es. Andrea", autoComplete: "name" })] }), _jsxs("label", { className: "boot-label", children: ["Codice viaggio", _jsx("input", { value: code, onChange: (e) => setCode(e.target.value), onKeyDown: (e) => e.key === "Enter" && join(), placeholder: "Inserisci il codice", autoComplete: "off" })] }), error && _jsx("div", { className: "boot-error", children: error }), _jsxs("button", { className: "boot-primary", onClick: join, disabled: !code.trim() || busy, children: [_jsx(LockKeyhole, { size: 16 }), " ", busy ? "Accesso…" : "Entra"] }), _jsxs("div", { className: "boot-security", children: [_jsx(ShieldCheck, { size: 15 }), " Accesso protetto: il codice viene verificato sul server e il database non \u00E8 esposto direttamente."] }), _jsxs("div", { className: "boot-slug", children: ["Viaggio: ", TRIP_SLUG] })] }) }));
+    return (_jsx("main", { className: "boot-shell", children: _jsxs("section", { className: "access-card", children: [_jsx("div", { className: "access-icon", children: _jsx(Plane, { size: 28 }) }), _jsx("div", { className: "access-kicker", children: "Palma \u00B7 1\u20139 settembre 2026" }), _jsx("h1", { children: "Entra nel viaggio" }), _jsx("p", { className: "access-copy", children: "Inserisci il tuo nome. Il programma, le spese e i ricordi saranno sincronizzati con gli altri partecipanti." }), _jsxs("label", { className: "boot-label", children: ["Il tuo nome", _jsx("input", { value: name, onChange: (e) => setName(e.target.value), onKeyDown: (e) => e.key === "Enter" && join(), placeholder: "Es. Andrea", autoComplete: "name", autoFocus: true })] }), error && _jsx("div", { className: "boot-error", children: error }), _jsxs("button", { className: "boot-primary", onClick: join, disabled: !name.trim() || busy, children: [_jsx(Plane, { size: 16 }), " ", busy ? "Accesso…" : "Entra"] }), _jsxs("div", { className: "boot-security", children: [_jsx(ShieldCheck, { size: 15 }), " Accesso con nome: i dati del viaggio restano sincronizzati tra i partecipanti."] }), _jsxs("div", { className: "boot-slug", children: ["Viaggio: ", TRIP_SLUG] })] }) }));
 }
 function Root() {
     const [state, setState] = useState(cloudConfigured ? "checking" : "ready");
@@ -2158,7 +2156,7 @@ function Root() {
 }
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js?v=77", { updateViaCache: "none" }).catch(() => undefined);
+        navigator.serviceWorker.register("/sw.js?v=82", { updateViaCache: "none" }).catch(() => undefined);
     });
 }
 ReactDOM.createRoot(document.getElementById("root")).render(_jsx(React.StrictMode, { children: _jsx(Root, {}) }));

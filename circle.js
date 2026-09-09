@@ -1,5 +1,5 @@
 (() => {
-  window.__PALMA_CIRCLE_VERSION = '47-mobile-batch-stable';
+  window.__PALMA_CIRCLE_VERSION = '48-previews-compact-ui';
 
   const SUPABASE_URL = 'https://cvdlzwralgtapsigyuko.supabase.co';
   const STORAGE_URL = 'https://cvdlzwralgtapsigyuko.storage.supabase.co/storage/v1/upload/resumable/sign';
@@ -15,7 +15,7 @@
   const UPLOAD_CONCURRENCY = MOBILE_UPLOAD ? 1 : 3;
   const LOCAL_PREVIEW_LIMIT = MOBILE_UPLOAD ? 0 : 8;
   const UPLOAD_HISTORY_MS = 30000;
-  const META_CACHE_KEY = 'palma2026-circle-cache-v43';
+  const META_CACHE_KEY = 'palma2026-circle-cache-v44';
   const THUMB_CACHE = 'palma2026-circle-thumbs-v1';
   const URL_TTL = 12 * 60 * 1000;
   const SORT_PREF_KEY = 'palma2026-circle-sort-v1';
@@ -322,6 +322,11 @@
     if (!img?.isConnected) return;
     const src = img.dataset.src || '';
     if (!src) return;
+    if (img.tagName === 'VIDEO') {
+      img.src = src;
+      img.load();
+      return;
+    }
     if (src.startsWith('blob:') || src.startsWith('data:')) {
       img.src = src;
       return;
@@ -355,7 +360,7 @@
 
   function wireLazyImages(grid) {
     lazyObserver?.disconnect();
-    const images = [...grid.querySelectorAll('img[data-src]')];
+    const images = [...grid.querySelectorAll('img[data-src],video[data-src]')];
     const reveal = (img) => {
       img.removeAttribute('data-lazy');
       void cachedThumb(img);
@@ -415,10 +420,16 @@
       const persistedIndex = media.findIndex((row) => row.id === item.id);
       const selectedNow = selected.has(item.id);
       const kind = mediaKind(item);
-      const thumb = item.thumb_url || (kind === 'image' && isBrowserImage(item) ? item.url : '');
+      const thumb = item.thumb_url || item.url || '';
+      const videoOriginal = kind === 'video' && !item.thumb_url && !!item.url;
+      const tileMedia = thumb
+        ? (videoOriginal
+          ? `<video data-lazy data-src="${esc(thumb)}" data-id="${esc(item.id)}" data-version="${esc(item.path || item.captured_at || '')}" muted playsinline preload="metadata" aria-hidden="true" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"></video><div class="pc-fallback" style="display:none">▶</div>`
+          : `<img data-lazy data-src="${esc(thumb)}" data-id="${esc(item.id)}" data-version="${esc(item.thumb_path || item.path || item.captured_at || '')}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="pc-fallback" style="display:none">${kind === 'video' ? '▶' : '📷'}</div>`)
+        : `<div class="pc-fallback">${kind === 'video' ? '▶' : '📷'}</div>`;
       html += `<button class="pc-tile ${selectedNow ? 'selected' : ''} ${item.optimistic ? 'uploading' : ''} ${item.failed ? 'failed' : ''}" data-id="${esc(item.id)}" data-i="${persistedIndex}">
         <div class="pc-tile-media">
-          ${thumb ? `<img data-lazy data-src="${esc(thumb)}" data-id="${esc(item.id)}" data-version="${esc(item.thumb_path || item.captured_at || '')}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="pc-fallback" style="display:none">${kind === 'video' ? '▶' : '📷'}</div>` : `<div class="pc-fallback">${kind === 'video' ? '▶' : '📷'}</div>`}
+          ${tileMedia}
           ${kind === 'video' ? '<span class="pc-video">▶</span>' : ''}
           ${selectMode && !item.optimistic ? `<span class="pc-check">${selectedNow ? '✓' : ''}</span>` : ''}
           ${!selectMode && !item.optimistic && (item.viewed || item.downloaded) ? `<span class="pc-state-stack">${item.viewed ? '<i>👁 Visto</i>' : ''}${item.downloaded ? '<i>↓ Scaricato</i>' : ''}</span>` : ''}
@@ -474,8 +485,8 @@
     const run = () => {
       const candidates = media.slice(0, 15);
       candidates.forEach((item) => {
-        const img = document.querySelector(`img[data-id="${CSS.escape(item.id)}"]`);
-        if (img && !img.src) void cachedThumb(img);
+        const img = document.querySelector(`img[data-id="${CSS.escape(item.id)}"],video[data-id="${CSS.escape(item.id)}"]`);
+        if (img && !img.getAttribute('src')) void cachedThumb(img);
       });
     };
     if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 1000 });
@@ -1212,10 +1223,10 @@
       .pc-circle header button,.pc-view header button,.pc-comments header button{border:0;background:#f2f4f3;color:#173b45;border-radius:999px;min-width:40px;height:40px;font-size:20px;cursor:pointer}
       .pc-album-sub{font-size:11px;color:#7a888d;margin-top:1px}.pc-cloud{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#e9f5f2}
       .pc-members{display:flex;gap:11px;align-items:center;padding:14px 16px 8px}.pc-members>div:last-child{display:flex;flex-direction:column}.pc-members strong{font-size:13px}.pc-members span{font-size:11px;color:#7a888d}.pc-avatars{display:flex}.pc-avatars span,.pc-avatar{width:33px;height:33px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#d9eeea,#f4e0d6);color:#173b45;font-size:11px;font-weight:800;border:2px solid #fff;margin-right:-7px}
-      .pc-status{padding:0 16px 10px;color:#77868b;font-size:11.5px}.pc-toolbar{display:flex;gap:7px;overflow:auto;padding:8px 16px 13px;scrollbar-width:none}.pc-toolbar::-webkit-scrollbar{display:none}.pc-toolbar button,.pc-toolbar select,.pc-selectbar button{border:0;border-radius:999px;padding:9px 14px;background:#f2f4f3;color:#2f474e;font-weight:700;font-size:12px;white-space:nowrap}.pc-toolbar select{appearance:auto;max-width:178px}.pc-toolbar button.active{background:#173b45;color:white}.pc-toolbar [data-select]{margin-left:auto;background:white;border:1px solid #e3e8e6}
+      .pc-status{padding:0 16px 10px;color:#77868b;font-size:11.5px}.pc-toolbar{display:flex;gap:7px;overflow:auto;padding:8px 16px 13px;scrollbar-width:none}.pc-toolbar::-webkit-scrollbar{display:none}.pc-toolbar button,.pc-toolbar select,.pc-selectbar button{border:0;border-radius:999px;padding:9px 14px;background:#f2f4f3;color:#2f474e;font-weight:700;font-size:12px;white-space:nowrap}.pc-toolbar select{appearance:auto;max-width:178px}.pc-toolbar button.active{background:#173b45;color:white} 
       .pc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:0 2px 18px;background:#fff}.pc-day{grid-column:1/-1;display:flex;justify-content:space-between;padding:15px 12px 7px;background:#fff;color:#53686f;text-transform:capitalize;font-size:12px}.pc-day strong{font-size:13px}
-      .pc-tile{position:relative;border:0;padding:0;background:#e9eeec;aspect-ratio:1;overflow:hidden;content-visibility:auto;contain:layout paint style;contain-intrinsic-size:160px 160px;cursor:pointer}.pc-tile-media,.pc-tile img{width:100%;height:100%;object-fit:cover}.pc-tile img{display:block;background:linear-gradient(110deg,#eef2f1 25%,#f8faf9 42%,#eef2f1 60%);background-size:240% 100%;animation:pc-shimmer 1.4s infinite}.pc-tile img[src]{animation:none}.pc-fallback{width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(145deg,#eef5f3,#f7eee9);font-size:29px}.pc-tile:after{content:'';position:absolute;inset:auto 0 0;height:38%;background:linear-gradient(transparent,rgba(0,0,0,.45));pointer-events:none}.pc-tile-meta{position:absolute;z-index:2;left:7px;right:6px;bottom:6px;display:flex;align-items:center;gap:7px;color:white;text-shadow:0 1px 4px #000;font-size:10px}.pc-tile-meta .pc-avatar{width:24px;height:24px;border:1.5px solid #fff;color:#173b45;text-shadow:none}.pc-video,.pc-check{position:absolute;z-index:3;top:7px;right:7px;background:rgba(0,0,0,.56);color:white;border-radius:999px;padding:5px 7px;font-size:10px}.pc-check{left:7px;right:auto;min-width:26px;text-align:center}.pc-state-stack{position:absolute;z-index:4;top:7px;left:7px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}.pc-state-stack i{display:block;padding:4px 6px;border-radius:999px;background:rgba(23,59,69,.84);color:white;font-size:8.5px;font-style:normal;font-weight:800;line-height:1}.pc-state-stack i+i{background:rgba(42,117,92,.9)}.pc-uploading-badge{position:absolute;z-index:4;inset:auto 7px 7px 7px;border-radius:999px;padding:6px 8px;background:rgba(23,59,69,.86);color:#fff;font-size:10px;font-weight:800}.pc-uploading-badge.duplicate{background:#347b68}
-      .pc-more{grid-column:1/-1;border:0;background:#f2f6f4;color:#173b45;margin:16px auto 22px;border-radius:999px;padding:11px 18px;font-size:12px;font-weight:800}.pc-uploadbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);backdrop-filter:blur(15px);border-top:1px solid #e8ecea}.pc-uploadbar.hidden{display:none}.pc-uploadbar>span{font-size:10.5px;color:#7e8c91;max-width:58%}.pc-uploadbar .primary{border:0;border-radius:999px;padding:12px 17px;background:#173b45;color:white;font-weight:800;box-shadow:0 8px 24px rgba(23,59,69,.22)}
+      .pc-tile{position:relative;border:0;padding:0;background:#e9eeec;aspect-ratio:1;overflow:hidden;content-visibility:auto;contain:layout paint style;contain-intrinsic-size:160px 160px;cursor:pointer}.pc-tile-media,.pc-tile img,.pc-tile video{width:100%;height:100%;object-fit:cover}.pc-tile img,.pc-tile video{display:block;background:linear-gradient(110deg,#eef2f1 25%,#f8faf9 42%,#eef2f1 60%);background-size:240% 100%;animation:pc-shimmer 1.4s infinite}.pc-tile img[src],.pc-tile video[src]{animation:none}.pc-fallback{width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(145deg,#eef5f3,#f7eee9);font-size:29px}.pc-tile:after{content:'';position:absolute;inset:auto 0 0;height:38%;background:linear-gradient(transparent,rgba(0,0,0,.45));pointer-events:none}.pc-tile-meta{position:absolute;z-index:2;left:7px;right:6px;bottom:6px;display:flex;align-items:center;gap:7px;color:white;text-shadow:0 1px 4px #000;font-size:10px}.pc-tile-meta .pc-avatar{width:24px;height:24px;border:1.5px solid #fff;color:#173b45;text-shadow:none}.pc-video,.pc-check{position:absolute;z-index:3;top:7px;right:7px;background:rgba(0,0,0,.56);color:white;border-radius:999px;padding:5px 7px;font-size:10px}.pc-check{left:7px;right:auto;min-width:26px;text-align:center}.pc-state-stack{position:absolute;z-index:4;top:7px;left:7px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}.pc-state-stack i{display:block;padding:4px 6px;border-radius:999px;background:rgba(23,59,69,.84);color:white;font-size:8.5px;font-style:normal;font-weight:800;line-height:1}.pc-state-stack i+i{background:rgba(42,117,92,.9)}.pc-uploading-badge{position:absolute;z-index:4;inset:auto 7px 7px 7px;border-radius:999px;padding:6px 8px;background:rgba(23,59,69,.86);color:#fff;font-size:10px;font-weight:800}.pc-uploading-badge.duplicate{background:#347b68}
+      .pc-more{grid-column:1/-1;border:0;background:#f2f6f4;color:#173b45;margin:16px auto 22px;border-radius:999px;padding:11px 18px;font-size:12px;font-weight:800}.pc-uploadbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);backdrop-filter:blur(15px);border-top:1px solid #e8ecea}.pc-uploadbar.hidden{display:none}.pc-uploadbar>span{font-size:10.5px;color:#7e8c91;max-width:42%}.pc-upload-actions{display:flex;align-items:center;gap:8px;margin-left:auto}.pc-upload-actions button{border:1px solid #dce5e2;border-radius:999px;padding:12px 14px;background:#f4f7f5;color:#173b45;font-weight:800;white-space:nowrap}.pc-uploadbar .primary{border:0;padding:12px 17px;background:#173b45;color:white;box-shadow:0 8px 24px rgba(23,59,69,.22)}
       .pc-selectbar{display:none;justify-content:space-between;align-items:center;gap:8px;padding:11px 16px calc(11px + env(safe-area-inset-bottom));background:white;border-top:1px solid #e8ecea}.pc-selectbar.show{display:flex}.pc-upload-list{max-height:min(34dvh,280px);overflow:auto;padding:0 14px;background:white}.pc-upload-summary{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:10px 2px 9px;background:rgba(255,255,255,.97);border-bottom:1px solid #e8ecea}.pc-upload-summary strong{font-size:12px;color:#173b45}.pc-upload-summary span{font-size:10px;color:#718086}.pc-upload-summary i{grid-column:1/-1;height:6px;border-radius:99px;background:#e9efed;overflow:hidden}.pc-upload-summary i b{display:block;height:100%;background:linear-gradient(90deg,#2b9a8b,#55b9ae);transition:width .2s}.pc-upload-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px 8px;align-items:center;padding:9px 2px;border-top:1px solid #eef1f0;font-size:11px}.pc-upload-row>b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-upload-row>button{border:0;border-radius:999px;background:#173b45;color:white;padding:5px 8px;font-size:10px;font-weight:800}.pc-upload-row.failed [data-pct]{color:#a6463b}.pc-upload-progress{grid-column:1/-1;height:5px;border-radius:99px;background:#edf1ef;overflow:hidden}.pc-upload-progress b{display:block;width:0;height:100%;background:linear-gradient(90deg,#2b9a8b,#55b9ae);transition:width .2s}
       .pc-empty{grid-column:1/-1;min-height:310px;display:grid;place-items:center;align-content:center;gap:7px;text-align:center;color:#78878c;background:white}.pc-empty>div{font-size:44px}.pc-empty strong{font-size:16px;color:#2b4249}.pc-empty span{font-size:12px;max-width:260px}.pc-empty button{margin-top:7px;border:0;border-radius:999px;background:#173b45;color:white;padding:10px 15px;font-weight:800}
       .pc-view{height:96dvh;background:#0b1115;color:white}.pc-view header{background:rgba(11,17,21,.84);border-bottom-color:#ffffff16;color:white}.pc-view header button{background:#ffffff16;color:white}.pc-view header small{display:block;color:#ffffff99;font-size:10px}.pc-stage{position:relative;background:#05090c;min-height:58dvh;display:grid;place-items:center;overflow:hidden}.pc-stage img,.pc-stage video{width:100%;max-height:70dvh;object-fit:contain}.pc-preview-play,.pc-video-loading,.pc-video-error{position:absolute;color:white}.pc-preview-play{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:rgba(0,0,0,.62);border-radius:18px;padding:16px;color:white}.pc-video-loading{display:none}.pc-video-error{display:none;z-index:6;inset:0;background:#05090c;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:28px}.pc-video-error strong{font-size:18px}.pc-video-error span{max-width:300px;color:#ffffffa8;font-size:12px}.pc-prev,.pc-next{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:50%;width:44px;height:44px;background:rgba(0,0,0,.48)!important;color:white!important}.pc-prev{left:8px}.pc-next{right:8px}.pc-caption{padding:13px 16px;background:#0b1115}.pc-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 10px 14px;background:#0b1115}.pc-actions button{border:0;background:#182127;color:white;border-radius:14px;padding:10px 4px}.pc-actions span{display:block;font-size:10px;margin-top:3px;color:#ffffffb0}.pc-react-pop,.pc-menu{display:none;position:absolute;z-index:12;background:white;color:#173b45;border-radius:15px;padding:8px;box-shadow:0 12px 40px rgba(0,0,0,.25)}.pc-react-pop.show,.pc-menu.show{display:flex}.pc-react-pop{left:10px;bottom:70px}.pc-menu{right:12px;top:68px;flex-direction:column}
@@ -1223,9 +1234,9 @@
       .pc-download{position:relative;width:min(90vw,390px);background:#fff;border-radius:24px;padding:27px 22px 22px;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 24px 70px rgba(0,0,0,.3)}.pc-download>[data-close]{position:absolute;right:12px;top:12px;border:0;border-radius:50%;width:34px;height:34px}.pc-download-icon{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#e9f5f2;color:#173b45;font-size:28px}.pc-download strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-download span,.pc-download small{color:#718087;font-size:12px}.pc-download-track{width:100%;height:8px;border-radius:999px;background:#edf1ef;overflow:hidden;margin-top:7px}.pc-download-track b{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2b9a8b,#55b9ae);transition:width .12s}
       .pc-toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));z-index:100000;transform:translate(-50%,30px);opacity:0;background:#173b45;color:white;padding:10px 14px;border-radius:18px;max-width:min(88vw,460px);text-align:center;transition:.2s}.pc-toast.show{transform:translate(-50%,0);opacity:1}.pc-toast[data-type=error]{background:#8c3440}
       @keyframes pc-shimmer{to{background-position:-240% 0}}
-      @media(max-width:720px){.pc-overlay{background:#fff;align-items:stretch}.pc-circle,.pc-view,.pc-comments{width:100%;height:100dvh;max-height:none;border-radius:0}.pc-grid{grid-template-columns:repeat(3,1fr)}.pc-circle header,.pc-comments header{padding-top:calc(10px + env(safe-area-inset-top))}.pc-dialog-wrap{background:rgba(7,17,24,.68);align-items:flex-end}.pc-dialog-wrap .pc-download{margin:auto}}
+      @media(max-width:480px){.pc-uploadbar>span{display:none}.pc-uploadbar{justify-content:flex-end}.pc-upload-actions{width:100%;justify-content:flex-end}}@media(max-width:720px){.pc-overlay{background:#fff;align-items:stretch}.pc-circle,.pc-view,.pc-comments{width:100%;height:100dvh;max-height:none;border-radius:0}.pc-grid{grid-template-columns:repeat(3,1fr)}.pc-circle header,.pc-comments header{padding-top:calc(10px + env(safe-area-inset-top))}.pc-dialog-wrap{background:rgba(7,17,24,.68);align-items:flex-end}.pc-dialog-wrap .pc-download{margin:auto}}
       @media(min-width:900px){.pc-grid{grid-template-columns:repeat(4,1fr)}}
-      @media(prefers-reduced-motion:reduce){.pc-tile img{animation:none}.pc-toast,.pc-upload-progress b,.pc-download-track b{transition:none}}
+      @media(prefers-reduced-motion:reduce){.pc-tile img,.pc-tile video{animation:none}.pc-toast,.pc-upload-progress b,.pc-download-track b{transition:none}}
     `;
     document.head.appendChild(style);
   }
@@ -1236,17 +1247,17 @@
     ensureCircleStyle();
     if (circleOverlay?.isConnected) return;
     const { o } = overlay(`<div class="pc-circle" role="dialog" aria-modal="true" aria-label="Ricordi">
-      <header><button data-close aria-label="Chiudi">‹</button><div><strong>Ricordi</strong><div class="pc-album-sub">Album condiviso con chi entra con il codice viaggio</div></div><span class="pc-cloud">☁️</span></header>
+      <header><button data-close aria-label="Chiudi">‹</button><div><strong>Ricordi</strong><div class="pc-album-sub">Album condiviso del viaggio</div></div><span class="pc-cloud">☁️</span></header>
       <div class="pc-gallery-scroll">
         <div class="pc-members"></div>
-        <div class="pc-toolbar"><button data-filter="all" class="active">Tutti</button><button data-filter="image">Foto</button><button data-filter="video">Video</button><select data-sort aria-label="Ordina ricordi"><option value="captured_at:desc">Data foto · recenti</option><option value="captured_at:asc">Data foto · meno recenti</option><option value="created_at:desc">Aggiunta · recenti</option><option value="created_at:asc">Aggiunta · meno recenti</option></select><button data-select>Seleziona</button></div>
+        <div class="pc-toolbar"><button data-filter="all" class="active">Tutti</button><button data-filter="image">Foto</button><button data-filter="video">Video</button><select data-sort aria-label="Ordina ricordi"><option value="captured_at:desc">Data foto · recenti</option><option value="captured_at:asc">Data foto · meno recenti</option><option value="created_at:desc">Aggiunta · recenti</option><option value="created_at:asc">Aggiunta · meno recenti</option></select></div>
         <div class="pc-status">Carico l’album…</div>
         <div class="pc-grid"></div>
       </div>
       <div class="pc-dock">
         <div class="pc-selectbar"><strong>0 selezionati</strong><div><button data-download-selected>Scarica</button><button data-clear-selected>Annulla</button></div></div>
         <div class="pc-upload-list"></div>
-        <div class="pc-uploadbar"><span>I file già presenti vengono riconosciuti automaticamente</span><button class="primary" data-add>＋ Aggiungi</button><input data-files hidden type="file" multiple accept="image/*,video/*,.heic,.heif,.jpg,.jpeg,.png,.mov,.mp4,.m4v,.webm,.3gp"></div>
+        <div class="pc-uploadbar"><span>I file già presenti vengono riconosciuti automaticamente</span><div class="pc-upload-actions"><button data-select>Seleziona</button><button class="primary" data-add>＋ Aggiungi</button></div><input data-files hidden type="file" multiple accept="image/*,video/*,.heic,.heif,.jpg,.jpeg,.png,.mov,.mp4,.m4v,.webm,.3gp"></div>
       </div>
     </div>`, 'pc-circle-wrap');
     circleOverlay = o;
