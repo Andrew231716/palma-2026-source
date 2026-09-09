@@ -1,15 +1,27 @@
 (()=>{
+  const patchTus=(tus)=>{
+    if(!tus?.Upload||tus.Upload.prototype.__palmaFreshSession)return tus;
+    const proto=tus.Upload.prototype;
+    proto.__palmaFreshSession=true;
+    if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){
+      proto.findPreviousUploads=async()=>[];
+    }
+    return tus;
+  };
+
   const ensureTus=()=>{
-    if(window.tus?.Upload)return Promise.resolve(window.tus);
+    if(window.tus?.Upload)return Promise.resolve(patchTus(window.tus));
     if(window.__palmaTusFallback)return window.__palmaTusFallback;
     window.__palmaTusFallback=new Promise((resolve,reject)=>{
-      const s=document.createElement('script');
+      const existing=document.querySelector('script[data-palma-tus-safe]');
+      const s=existing||document.createElement('script');
       s.src='https://unpkg.com/tus-js-client@4.3.1/dist/tus.min.js';
       s.crossOrigin='anonymous';
-      s.onload=()=>window.tus?.Upload?resolve(window.tus):reject(new Error('tus_missing_after_load'));
+      s.dataset.palmaTusSafe='true';
+      s.onload=()=>window.tus?.Upload?resolve(patchTus(window.tus)):reject(new Error('tus_missing_after_load'));
       s.onerror=()=>reject(new Error('tus_cdn_load_failed'));
-      document.head.appendChild(s);
-    }).catch(err=>{window.__palmaTusFallback=null;console.error('Palma TUS fallback',err);throw err});
+      if(!existing)document.head.appendChild(s);
+    }).catch(err=>{window.__palmaTusFallback=null;console.error('Palma Ricordi TUS',err);throw err});
     return window.__palmaTusFallback;
   };
   void ensureTus().catch(()=>{});
@@ -33,7 +45,6 @@
 
   let previewUrls=[];
   const clearPreviewUrls=()=>{for(const u of previewUrls){try{URL.revokeObjectURL(u)}catch{}}previewUrls=[]};
-
   const markSelect=()=>{
     const circle=document.querySelector('.pc-circle');
     if(!circle)return;
@@ -67,21 +78,19 @@
     }
     if(files.length>visible.length){const more=document.createElement('div');more.className='palma-batch-more';more.textContent=`+${files.length-visible.length}\naltre`;list.appendChild(more)}
     box.append(head,list);
-    const dock=circle.querySelector('.pc-dock');
     const uploadList=circle.querySelector('.pc-upload-list');
     if(uploadList?.parentElement)uploadList.parentElement.insertBefore(box,uploadList);
-    else if(dock)dock.prepend(box);
+    else circle.querySelector('.pc-dock')?.prepend(box);
   };
 
   document.addEventListener('change',e=>{
     const input=e.target;
     if(!(input instanceof HTMLInputElement)||input.type!=='file'||!input.multiple||!input.closest('.pc-circle'))return;
     const files=[...(input.files||[])];
-    if(!files.length)return;
-    renderBatchPreview(input,files);
+    if(files.length)renderBatchPreview(input,files);
   },true);
 
-  const apply=()=>markSelect();
+  const apply=()=>{markSelect();if(window.tus?.Upload)patchTus(window.tus)};
   const observer=new MutationObserver(apply);
   observer.observe(document.documentElement,{subtree:true,childList:true});
   setTimeout(apply,200);
