@@ -1,4 +1,19 @@
 (()=>{
+  const ensureTus=()=>{
+    if(window.tus?.Upload)return Promise.resolve(window.tus);
+    if(window.__palmaTusFallback)return window.__palmaTusFallback;
+    window.__palmaTusFallback=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://unpkg.com/tus-js-client@4.3.1/dist/tus.min.js';
+      s.crossOrigin='anonymous';
+      s.onload=()=>window.tus?.Upload?resolve(window.tus):reject(new Error('tus_missing_after_load'));
+      s.onerror=()=>reject(new Error('tus_cdn_load_failed'));
+      document.head.appendChild(s);
+    }).catch(err=>{window.__palmaTusFallback=null;console.error('Palma TUS fallback',err);throw err});
+    return window.__palmaTusFallback;
+  };
+  void ensureTus().catch(()=>{});
+
   const patchTus=()=>{
     const Upload=window.tus?.Upload;
     if(!Upload?.prototype||Upload.prototype.__palmaFreshUpload)return false;
